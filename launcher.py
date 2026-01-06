@@ -2,6 +2,9 @@
 import os
 import streamlit as st
 from shared import load_env_keys
+from auth import require_login
+
+require_login()
 
 st.set_page_config(page_title="SEO Automator (SerpAPI + OpenAI)", page_icon="🔎", layout="wide")
 
