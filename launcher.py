@@ -27,9 +27,9 @@ st.title("🔎 SEO Automator — SerpAPI + OpenAI")
 st.caption("Configure model, gl, and hl in the left sidebar.")
 
 # ---- Tabs ----
-tab_internal, tab_rank, tab_update, tab_brief, tab_comp, tab_sc, tab_sf = st.tabs(
-    ["Internal Links", "Rank Track", "Content Update", "Content Brief",
-     "Competitive Audit", "Search Console", "Screaming Frog"]
+tab_internal, tab_rank, tab_audit, tab_update, tab_brief, tab_comp, tab_sc, tab_sf = st.tabs(
+    ["Internal Links", "Rank Track", "Content Audit", "Content Update",
+     "Content Brief", "Search Console", "Screaming Frog"]
 )
 
 with tab_internal:
@@ -40,13 +40,13 @@ with tab_rank:
     import ranking
     ranking.render(gl, hl, SERPAPI_KEY)
 
-with tab_update:
-    import contentupdate
-    contentupdate.render(OPENAI_API_KEY)
-
 with tab_audit:
     import contentaudit
     contentaudit.render(OPENAI_API_KEY)
+
+with tab_update:
+    import contentupdate
+    contentupdate.render(OPENAI_API_KEY)
 
 with tab_brief:
     import contentbrief
