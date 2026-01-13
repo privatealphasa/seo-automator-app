@@ -3,52 +3,85 @@ import os
 import streamlit as st
 from shared import load_env_keys
 
-def require_login():
-    if "authenticated" not in st.session_state:
-        st.session_state.authenticated = False
+# -------------------------------
+# 🔐 APP PASSWORD LOGIN
+# -------------------------------
 
-    if st.session_state.authenticated:
-        return True
+APP_PASSWORD = os.getenv("APP_PASSWORD")
 
-    st.title("🔒 SEO Automator — Login")
+if "authenticated" not in st.session_state:
+    st.session_state["authenticated"] = False
 
-    password = st.text_input("Password", type="password")
+if not st.session_state["authenticated"]:
+    st.title("🔐 SEO Automator Login")
 
-    expected = os.getenv("APP_PASSWORD", "")
+    password = st.text_input("Enter App Password", type="password")
 
-    if st.button("Login"):
-        if password == expected and expected:
-            st.session_state.authenticated = True
+    if password:
+        if password == APP_PASSWORD:
+            st.session_state["authenticated"] = True
+            st.success("Access granted. Loading app...")
             st.rerun()
         else:
             st.error("Incorrect password")
 
-    st.stop()
+    st.stop()  # Prevent app from loading until authenticated
 
-st.set_page_config(page_title="SEO Automator (SerpAPI + OpenAI)", page_icon="🔎", layout="wide")
+
+# -------------------------------
+# 🚀 MAIN APP CONFIG
+# -------------------------------
+
+st.set_page_config(
+    page_title="SEO Automator (SerpAPI + OpenAI)",
+    page_icon="🔎",
+    layout="wide"
+)
 
 # ---- ENV + Sidebar ----
 OPENAI_API_KEY, SERPAPI_KEY, AHREFS_API_TOKEN = load_env_keys()
 
 st.sidebar.header("⚙️ Settings")
+
 OPENAI_MODEL = st.sidebar.selectbox(
     "OpenAI Model",
-    ["gpt-4o-mini", "gpt-4o", "gpt-4.1", "gpt-4.1-mini"],  
+    ["gpt-4o-mini", "gpt-4o", "gpt-4.1", "gpt-4.1-mini"],
     index=0
 )
-gl = st.sidebar.selectbox("Google geolocation (gl)", ["us","uk","ca","au","za","de","fr","se","nl"], index=0)
-hl = st.sidebar.selectbox("Google language (hl)", ["en","fr","de","sv","nl","es","it","pt"], index=0)
 
-# Expose the model globally for tabs that use OpenAI
+gl = st.sidebar.selectbox(
+    "Google geolocation (gl)",
+    ["us", "uk", "ca", "au", "za", "de", "fr", "se", "nl"],
+    index=0
+)
+
+hl = st.sidebar.selectbox(
+    "Google language (hl)",
+    ["en", "fr", "de", "sv", "nl", "es", "it", "pt"],
+    index=0
+)
+
+# Expose model globally
 os.environ["OPENAI_MODEL"] = OPENAI_MODEL
+
+# -------------------------------
+# 🧠 APP UI
+# -------------------------------
 
 st.title("🔎 SEO Automator — SerpAPI + OpenAI")
 st.caption("Configure model, gl, and hl in the left sidebar.")
 
 # ---- Tabs ----
-tab_internal, tab_rank, tab_audit, tab_brief, tab_sc, tab_sf = st.tabs(
-    ["Internal Links", "Rank Track", "Content Audit", "Content Brief",
-     "Search Console", "Screaming Frog"]
+tab_internal, tab_rank, tab_audit, tab_brief, tab_update, tab_sc, tab_sf = st.tabs(
+    [
+        "Internal Links",
+        "Rank Track",
+        "Content Audit",
+        "Content Brief",
+        "Content Update",
+        "Search Console",
+        "Screaming Frog",
+    ]
 )
 
 with tab_internal:
@@ -66,6 +99,10 @@ with tab_audit:
 with tab_brief:
     import contentbrief
     contentbrief.render(OPENAI_API_KEY, SERPAPI_KEY, gl, hl, OPENAI_MODEL)
+
+with tab_update:
+    import contentupdate
+    contentupdate.render(OPENAI_API_KEY, SERPAPI_KEY, gl, hl, OPENAI_MODEL)
 
 with tab_sc:
     import searchconsole
