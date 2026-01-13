@@ -1,146 +1,164 @@
-# contentupdate_tab.py
+# contentupdate.py
+import os
 import streamlit as st
+from serpapi import GoogleSearch
+from openai import OpenAI
 from collections import Counter
 import re
+from dotenv import load_dotenv
 
-from shared import serpapi_google_search, openai_chat
+# --- Load environment variables ---
+load_dotenv()
+SERPAPI_KEY = os.getenv("SERPAPI_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+DEFAULT_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+DEFAULT_GL = os.getenv("GL", "us")
+DEFAULT_HL = os.getenv("HL", "en")
 
-def render(openai_api_key: str):
-    st.title("AI Content Auditor & Updater")
+# --- Helper functions ---
+def fetch_serp_snippets(keyword, language, country, serpapi_key):
+    params = {
+        "engine": "google",
+        "q": keyword,
+        "hl": language,
+        "gl": country,
+        "num": 10,
+        "api_key": serpapi_key
+    }
+    search = GoogleSearch(params)
+    results = search.get_dict()
+    snippets = []
+    for res in results.get("organic_results", []):
+        snippet = res.get("snippet", "")
+        if snippet:
+            snippets.append(snippet)
+    return snippets
+
+def extract_keywords(text):
+    stopwords = set([
+        "the","a","an","and","or","in","on","for","to","of","with","as","by","at",
+        "from","is","it","this","that","these","those","be","are","was","were"
+    ])
+    words = re.findall(r'\b\w+\b', text.lower())
+    keywords = [w for w in words if w not in stopwords and len(w) > 3]
+    return Counter(words).most_common(20)
+
+def highlight_missing_keywords(original, serp_snippets):
+    serp_text = " ".join(serp_snippets)
+    serp_keywords = set([w for w,_ in extract_keywords(serp_text)])
+    original_keywords = set([w for w,_ in extract_keywords(original)])
+    missing_keywords = serp_keywords - original_keywords
+    return missing_keywords
+
+# --- Render function for launcher.py ---
+def render(OPENAI_API_KEY, SERPAPI_KEY, default_gl, default_hl, default_model):
+    openai = OpenAI(api_key=OPENAI_API_KEY)
+
+    # --- Minimal Content Update settings at top ---
     
-    # --- Sidebar ---
-    with st.sidebar:
-        st.header("Content Audit Settings")
-        keyword = st.text_input("Target Keyword")
-        language = st.selectbox("Language", ["en", "fr", "de"], index=0)
-        country = st.selectbox("Country", ["us", "gb", "ca", "za"], index=0)
-
-        st.subheader("AI Model (cheaper options available)")
-        model = st.selectbox(
-            "Select GPT Model", 
-            ["gpt-4o-mini", "gpt-3.5-turbo", "gpt-4o", "gpt-4.1"], 
-            index=0
-        )
-
-        st.subheader("Mode")
-        mode = st.radio(
-            "Select how AI should handle content",
-            ["Full Rewrite", "Update Only", "SERP Overview Only"]
-        )
-        st.markdown("**Paste your page content in the main area.**")
+    col1, col2 = st.columns([3,3])
     
-    # --- Main content area ---
-    col1, col2 = st.columns(2)
     with col1:
-        original_content = st.text_area("Original Content", height=400)
+        target_keyword = st.text_input("Target Keyword")
     with col2:
+        mode = st.radio(
+            "Mode",
+            ["Full Rewrite","Update Only","SERP Overview Only"],
+            horizontal=True
+        )
+    
+    st.markdown("---")
+    st.markdown("**Paste your page content below:**")
+    
+    # --- Main content area: Original + Updated ---
+    col_orig, col_upd = st.columns(2)
+    
+    with col_orig:
+        original_content = st.text_area("Original Content", height=400)
+    with col_upd:
         updated_content_placeholder = st.empty()
     
-    # --- Helper functions ---
-    def extract_keywords(text):
-        stopwords = set([
-            "the","a","an","and","or","in","on","for","to","of","with","as","by","at",
-            "from","is","it","this","that","these","those","be","are","was","were"
-        ])
-        words = re.findall(r'\b\w+\b', text.lower())
-        keywords = [w for w in words if w not in stopwords and len(w) > 3]
-        return Counter(keywords).most_common(20)
-    
-    def highlight_missing_keywords(original, serp_snippets):
-        serp_text = " ".join(serp_snippets)
-        serp_keywords = set([w for w,_ in extract_keywords(serp_text)])
-        original_keywords = set([w for w,_ in extract_keywords(original)])
-        missing_keywords = serp_keywords - original_keywords
-        return missing_keywords
-    
-    def fetch_serp_snippets(keyword, language, country):
-        serp_json = serpapi_google_search(keyword, num=10, gl=country, hl=language, serpapi_key=os.getenv("SERPAPI_KEY"))
-        snippets = []
-        for r in serp_json.get("organic_results", []):
-            snippet = r.get("snippet", "")
-            if snippet:
-                snippets.append(snippet)
-        return snippets
-    
-    # --- Run analysis ---
-    if st.button("Audit & Update Content") and original_content.strip() and keyword.strip():
+    # --- Run AI analysis ---
+    if st.button("Audit & Update Content") and original_content.strip() and target_keyword.strip():
         st.info("Fetching top SERP results...")
-        serp_snippets = fetch_serp_snippets(keyword, language, country)
+        serp_snippets = fetch_serp_snippets(target_keyword, DEFAULT_HL, DEFAULT_GL, SERPAPI_KEY)
+        
         missing_keywords = highlight_missing_keywords(original_content, serp_snippets)
         
         # --- Audit ---
         audit_prompt = f"""
-You are an SEO content expert.
-Original content:
-{original_content}
-
-Target Keyword: {keyword}
-
-Top SERP snippets:
-{' '.join(serp_snippets)}
-
-1. Identify missing keywords and NLP terms compared to the top SERP pages.
-2. Suggest improvements to increase SEO relevance.
-3. Provide a list of recommended keywords and NLP terms to add.
-"""
-        st.info("Generating content audit...")
-        audit_text = openai_chat(
-            api_key=openai_api_key,
-            messages=[{"role": "user", "content": audit_prompt}],
-            model=model
-        )
+        You are an SEO content expert.
+        Do NOT include any introductory phrases like "Certainly! Here’s a fully updated article..."
+        Do NOT add any extra commentary.
+        Original content:
+        {original_content}
         
-        # --- Updated content ---
+        Target Keyword: {target_keyword}
+        
+        Top SERP snippets:
+        {' '.join(serp_snippets)}
+        
+        1. Identify missing keywords and NLP terms compared to the top SERP pages.
+        2. Suggest improvements to increase SEO relevance.
+        3. Provide a list of recommended keywords and NLP terms to add.
+        """
+        st.info("Generating content audit...")
+        audit_response = openai.chat.completions.create(
+            model=default_model,
+            messages=[{"role":"user","content":audit_prompt}]
+        )
+        audit_text = audit_response.choices[0].message.content
+        
+        # --- Generate updated content ---
         if mode != "SERP Overview Only":
-            update_prompt = ""
             if mode == "Full Rewrite":
                 update_prompt = f"""
-You are an SEO content expert.
-Original content:
-{original_content}
-
-Target Keyword: {keyword}
-
-Top SERP snippets:
-{' '.join(serp_snippets)}
-
-Based on the audit, generate a fully updated version of the content optimized for the target keyword and include recommended NLP terms naturally.
-"""
+                You are an SEO content expert.
+                Original content:
+                {original_content}
+                
+                Target Keyword: {target_keyword}
+                
+                Top SERP snippets:
+                {' '.join(serp_snippets)}
+                
+                Based on the audit, generate a fully updated version optimized for the target keyword and include NLP terms naturally.
+                """
             elif mode == "Update Only":
                 update_prompt = f"""
-You are an SEO content expert.
-Original content:
-{original_content}
-
-Target Keyword: {keyword}
-
-Top SERP snippets:
-{' '.join(serp_snippets)}
-
-Based on the audit, update the content by inserting missing keywords and NLP terms naturally, without rewriting the entire content.
-Keep the original structure and style intact.
-"""
+                You are an SEO content expert.
+                Original content:
+                {original_content}
+                
+                Target Keyword: {target_keyword}
+                
+                Top SERP snippets:
+                {' '.join(serp_snippets)}
+                
+                Update content by inserting missing keywords and NLP terms naturally without rewriting the whole content. Preserve structure and style.
+                """
             st.info(f"Generating updated content ({mode})...")
-            updated_content_text = openai_chat(
-                api_key=openai_api_key,
-                messages=[{"role": "user", "content": update_prompt}],
-                model=model
+            update_response = openai.chat.completions.create(
+                model=default_model,
+                messages=[{"role":"user","content":update_prompt}]
             )
-            with col2:
+            updated_content_text = update_response.choices[0].message.content
+            
+            with col_upd:
                 updated_content_placeholder.text_area("AI Suggested Updated Content", updated_content_text, height=400)
                 st.download_button(
                     label="Download Updated Content",
                     data=updated_content_text,
-                    file_name=f"{keyword.replace(' ','_')}_updated_content.txt",
+                    file_name=f"{target_keyword.replace(' ','_')}_updated_content.txt",
                     mime="text/plain"
                 )
         else:
-            with col2:
+            with col_upd:
                 updated_content_placeholder.text_area("AI Suggested Updated Content", "Mode: SERP Overview Only (no content generated)", height=400)
         
-        # --- SERP + audit display ---
+        # --- SERP snippets + audit below ---
         st.subheader("Top SERP Snippets")
-        for i, snippet in enumerate(serp_snippets, 1):
+        for i, snippet in enumerate(serp_snippets,1):
             st.markdown(f"{i}. {snippet}")
         
         st.subheader("Content Audit & Recommended Keywords")
