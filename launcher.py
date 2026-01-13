@@ -3,6 +3,28 @@ import os
 import streamlit as st
 from shared import load_env_keys
 
+def require_login():
+    if "authenticated" not in st.session_state:
+        st.session_state.authenticated = False
+
+    if st.session_state.authenticated:
+        return True
+
+    st.title("🔒 SEO Automator — Login")
+
+    password = st.text_input("Password", type="password")
+
+    expected = os.getenv("APP_PASSWORD", "")
+
+    if st.button("Login"):
+        if password == expected and expected:
+            st.session_state.authenticated = True
+            st.rerun()
+        else:
+            st.error("Incorrect password")
+
+    st.stop()
+
 st.set_page_config(page_title="SEO Automator (SerpAPI + OpenAI)", page_icon="🔎", layout="wide")
 
 # ---- ENV + Sidebar ----
