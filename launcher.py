@@ -41,8 +41,8 @@ with tab_rank:
     ranking.render(gl, hl, SERPAPI_KEY)
 
 with tab_update:
-    import contentaudit_tab  # or rename to contentupdate_tab.py
-    contentaudit_tab.render(OPENAI_API_KEY)
+    import contentupdate
+    contentupdate.render(OPENAI_API_KEY)
 
 with tab_audit:
     import contentaudit
