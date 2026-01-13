@@ -2,9 +2,6 @@
 import os
 import streamlit as st
 from shared import load_env_keys
-from auth import require_login
-
-require_login()
 
 st.set_page_config(page_title="SEO Automator (SerpAPI + OpenAI)", page_icon="🔎", layout="wide")
 
@@ -27,9 +24,9 @@ st.title("🔎 SEO Automator — SerpAPI + OpenAI")
 st.caption("Configure model, gl, and hl in the left sidebar.")
 
 # ---- Tabs ----
-tab_internal, tab_rank, tab_audit, tab_update, tab_brief, tab_comp, tab_sc, tab_sf = st.tabs(
-    ["Internal Links", "Rank Track", "Content Audit", "Content Update",
-     "Content Brief", "Search Console", "Screaming Frog"]
+tab_internal, tab_rank, tab_audit, tab_brief, tab_comp, tab_sc, tab_sf = st.tabs(
+    ["Internal Links", "Rank Track", "Content Audit", "Content Brief",
+     "Competitive Audit", "Search Console", "Screaming Frog"]
 )
 
 with tab_internal:
@@ -44,13 +41,14 @@ with tab_audit:
     import contentaudit
     contentaudit.render(OPENAI_API_KEY)
 
-with tab_update:
-    import contentupdate
-    contentupdate.render(OPENAI_API_KEY)
 
 with tab_brief:
     import contentbrief
     contentbrief.render(OPENAI_API_KEY, SERPAPI_KEY, gl, hl, OPENAI_MODEL)
+
+with tab_comp:
+    import competitiveaudit
+    competitiveaudit.render(AHREFS_API_TOKEN=AHREFS_API_TOKEN)
 
 with tab_sc:
     import searchconsole
