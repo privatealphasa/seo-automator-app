@@ -1,7 +1,7 @@
 # contentupdate.py
 import os
 import streamlit as st
-from serpapi import GoogleSearch
+import requests
 from openai import OpenAI
 from collections import Counter
 import re
@@ -16,22 +16,26 @@ DEFAULT_GL = os.getenv("GL", "us")
 DEFAULT_HL = os.getenv("HL", "en")
 
 # --- Helper functions ---
-def fetch_serp_snippets(keyword, language, country, serpapi_key):
+def fetch_serp_snippets(keyword, hl="en", gl="us"):
+    url = "https://serpapi.com/search.json"
     params = {
         "engine": "google",
         "q": keyword,
-        "hl": language,
-        "gl": country,
+        "hl": hl,
+        "gl": gl,
         "num": 10,
-        "api_key": serpapi_key
+        "api_key": os.getenv("SERPAPI_KEY")
     }
-    search = GoogleSearch(params)
-    results = search.get_dict()
-    snippets = []
-    for res in results.get("organic_results", []):
-        snippet = res.get("snippet", "")
-        if snippet:
-            snippets.append(snippet)
+
+    response = requests.get(url, params=params, timeout=30)
+    data = response.json()
+
+    snippets = [
+        r.get("snippet", "")
+        for r in data.get("organic_results", [])
+        if r.get("snippet")
+    ]
+
     return snippets
 
 def extract_keywords(text):
@@ -81,7 +85,7 @@ def render(OPENAI_API_KEY, SERPAPI_KEY, default_gl, default_hl, default_model):
     # --- Run AI analysis ---
     if st.button("Audit & Update Content") and original_content.strip() and target_keyword.strip():
         st.info("Fetching top SERP results...")
-        serp_snippets = fetch_serp_snippets(target_keyword, DEFAULT_HL, DEFAULT_GL, SERPAPI_KEY)
+        serp_snippets = fetch_serp_snippets(target_keyword, DEFAULT_HL, DEFAULT_GL)
         
         missing_keywords = highlight_missing_keywords(original_content, serp_snippets)
         
