@@ -89,7 +89,6 @@ def render(gl, hl, OPENAI_API_KEY, SERPAPI_KEY):
     if "excluded_domains" not in st.session_state:
         st.session_state.excluded_domains = load_excluded_domains()
 
-    st.markdown("---")
     st.subheader("⚙️ Excluded Domains Manager")
     col_add, col_remove = st.columns(2)
 
