@@ -6,7 +6,6 @@ from shared import load_env_keys
 # -------------------------------
 # 🔐 APP PASSWORD LOGIN
 # -------------------------------
-
 APP_PASSWORD = os.getenv("APP_PASSWORD")
 
 if "authenticated" not in st.session_state:
@@ -14,9 +13,7 @@ if "authenticated" not in st.session_state:
 
 if not st.session_state["authenticated"]:
     st.title("🔐 SEO Automator Login")
-
     password = st.text_input("Enter App Password", type="password")
-
     if password:
         if password == APP_PASSWORD:
             st.session_state["authenticated"] = True
@@ -24,14 +21,11 @@ if not st.session_state["authenticated"]:
             st.rerun()
         else:
             st.error("Incorrect password")
-
     st.stop()  # Prevent app from loading until authenticated
-
 
 # -------------------------------
 # 🚀 MAIN APP CONFIG
 # -------------------------------
-
 st.set_page_config(
     page_title="SEO Automator (SerpAPI + OpenAI)",
     page_icon="🔎",
@@ -67,12 +61,11 @@ os.environ["OPENAI_MODEL"] = OPENAI_MODEL
 # -------------------------------
 # 🧠 APP UI
 # -------------------------------
-
 st.title("🔎 SEO Automator — SerpAPI + OpenAI")
 st.caption("Configure model, gl, and hl in the left sidebar.")
 
 # ---- Tabs ----
-tab_internal, tab_rank, tab_audit, tab_brief, tab_update, tab_sc, tab_sf = st.tabs(
+tab_internal, tab_rank, tab_audit, tab_brief, tab_update, tab_sc, tab_sf, tab_bing = st.tabs(
     [
         "Internal Links",
         "Rank Track",
@@ -81,6 +74,7 @@ tab_internal, tab_rank, tab_audit, tab_brief, tab_update, tab_sc, tab_sf = st.ta
         "Content Update",
         "Search Console",
         "Screaming Frog",
+        "Bing Research",  # <-- new tab
     ]
 )
 
@@ -111,3 +105,11 @@ with tab_sc:
 with tab_sf:
     import screamingfrog
     screamingfrog.render()
+
+# -------------------------------
+# 🔎 Bing Research Tab Integration
+# -------------------------------
+with tab_bing:
+    import bing_research  # your refactored app saved as bing-research.py
+    # Expose sidebar globals to the bing research app
+    bing_research.render(gl=gl, hl=hl, OPENAI_API_KEY=OPENAI_API_KEY, SERPAPI_KEY=SERPAPI_KEY)
