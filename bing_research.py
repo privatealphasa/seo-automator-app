@@ -82,7 +82,6 @@ def ai_summary(text, OPENAI_API_KEY):
 # Main render function
 # -----------------------------
 def render(gl, hl, OPENAI_API_KEY, SERPAPI_KEY):
-    st.header("🔎 Bing Competitor Research Tool")
 
     # -----------------------------
     # Excluded Domains Manager
